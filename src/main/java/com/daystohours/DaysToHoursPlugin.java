@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.ClientTick;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.WidgetLoaded;
@@ -92,6 +93,16 @@ public class DaysToHoursPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		if (event.getGameState() != GameState.LOGGED_IN)
+		{
+			originalTimePlayedTextByWidgetId.clear();
+			conversionErrorLogged = false;
+		}
+	}
+
+	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
 		String optionRaw = event.getMenuOption();
@@ -152,7 +163,8 @@ public class DaysToHoursPlugin extends Plugin
 			return;
 		}
 
-		walkWidgetTree(container, this::convertTimePlayedTextToHours);
+		Integer latestTotalHours = findLatestTotalHoursFromDaysText(container);
+		walkWidgetTree(container, widget -> convertTimePlayedTextToHours(widget, latestTotalHours));
 	}
 
 	private void restoreVisibleTimePlayedText()
@@ -239,7 +251,42 @@ public class DaysToHoursPlugin extends Plugin
 		}
 	}
 
-	private void convertTimePlayedTextToHours(Widget widget)
+	private Integer findLatestTotalHoursFromDaysText(Widget root)
+	{
+		final int[] latestTotalHours = { -1 };
+		walkWidgetTree(root, widget ->
+		{
+			if (widget == null)
+			{
+				return;
+			}
+
+			String text = widget.getText();
+			if (text == null || text.isEmpty())
+			{
+				return;
+			}
+
+			String plainText = Text.removeTags(text);
+			Matcher matcher = TIME_PLAYED_PATTERN.matcher(plainText);
+			if (!matcher.find())
+			{
+				return;
+			}
+
+			int days = Integer.parseInt(matcher.group(1));
+			int extraHours = matcher.group(2) == null ? 0 : Integer.parseInt(matcher.group(2));
+			int totalHours = days * 24 + extraHours;
+			if (totalHours > latestTotalHours[0])
+			{
+				latestTotalHours[0] = totalHours;
+			}
+		});
+
+		return latestTotalHours[0] >= 0 ? latestTotalHours[0] : null;
+	}
+
+	private void convertTimePlayedTextToHours(Widget widget, Integer latestTotalHours)
 	{
 		String currentText = widget.getText();
 		if (currentText == null || currentText.isEmpty())
@@ -253,18 +300,29 @@ public class DaysToHoursPlugin extends Plugin
 			return;
 		}
 
+		int totalHours;
 		Matcher matcher = TIME_PLAYED_PATTERN.matcher(plainText);
-		if (!matcher.find())
+		if (matcher.find())
+		{
+			int days = Integer.parseInt(matcher.group(1));
+			int extraHours = matcher.group(2) == null ? 0 : Integer.parseInt(matcher.group(2));
+			totalHours = days * 24 + extraHours;
+		}
+		else if (latestTotalHours != null)
+		{
+			totalHours = latestTotalHours;
+		}
+		else
 		{
 			return;
 		}
 
-		int days = Integer.parseInt(matcher.group(1));
-		int extraHours = matcher.group(2) == null ? 0 : Integer.parseInt(matcher.group(2));
-		int totalHours = days * 24 + extraHours;
 		int widgetId = widget.getId();
 
-		originalTimePlayedTextByWidgetId.put(widgetId, currentText);
+		if (matcher.find(0))
+		{
+			originalTimePlayedTextByWidgetId.put(widgetId, currentText);
+		}
 
 		String newText = String.format("Time Played: <col=00cc00>%s</col>", formatHoursDisplay(totalHours));
 		if (!Text.removeTags(newText).equals(Text.removeTags(currentText)))
