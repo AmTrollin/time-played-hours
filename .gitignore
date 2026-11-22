@@ -1,5 +1,6 @@
 .gradle
 build
+.dev-user-home
 .idea/
 .project
 .settings/

@@ -38,8 +38,19 @@ tasks.register('run', JavaExec) {
 	classpath = sourceSets.test.runtimeClasspath
 	mainClass = pluginMainClass
 
+	def isolatedUserHome = file("${rootDir}/.dev-user-home")
+	isolatedUserHome.mkdirs()
+
+	jvmArgs "-ea", "-Duser.home=${isolatedUserHome.absolutePath}"
+	args "--developer-mode"
+}
+
+tasks.register('runShared', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = pluginMainClass
+
 	jvmArgs "-ea"
-	args "--developer-mode", "--debug"
+	args "--developer-mode"
 }
 
 tasks.register('shadowJar', Jar) {
