@@ -19,8 +19,8 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.WidgetLoaded;
+import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -35,6 +35,7 @@ public class DaysToHoursPlugin extends Plugin
 {
 	private static final String TIME_PLAYED_PREFIX = "time played:";
 	private static final String HOURS_TOKEN = "hour";
+	private static final int CHARACTER_SUMMARY_GROUP_ID = ComponentID.CHARACTER_SUMMARY_CONTAINER >> 16;
 	private static final Pattern TIME_PLAYED_PATTERN = Pattern.compile(
 		"(?i)Time Played\\s*:\\s*(\\d+)\\s*day(?:s)?(?:\\s*,\\s*(\\d+)\\s*hour(?:s)?)?"
 	);
@@ -86,10 +87,12 @@ public class DaysToHoursPlugin extends Plugin
 	@Subscribe
 	public void onWidgetLoaded(WidgetLoaded event)
 	{
-		if (event.getGroupId() == WidgetInfo.CHARACTER_SUMMARY_CONTAINER.getGroupId())
+		if (event.getGroupId() != CHARACTER_SUMMARY_GROUP_ID)
 		{
-			convertVisibleTimePlayedToHoursSafely();
+			return;
 		}
+
+		convertVisibleTimePlayedToHoursSafely();
 	}
 
 	@Subscribe
@@ -157,7 +160,7 @@ public class DaysToHoursPlugin extends Plugin
 			return;
 		}
 
-		Widget container = client.getWidget(WidgetInfo.CHARACTER_SUMMARY_CONTAINER);
+		Widget container = client.getWidget(ComponentID.CHARACTER_SUMMARY_CONTAINER);
 		if (container == null || container.isHidden())
 		{
 			return;
@@ -174,7 +177,7 @@ public class DaysToHoursPlugin extends Plugin
 			return;
 		}
 
-		Widget container = client.getWidget(WidgetInfo.CHARACTER_SUMMARY_CONTAINER);
+		Widget container = client.getWidget(ComponentID.CHARACTER_SUMMARY_CONTAINER);
 		if (container == null || container.isHidden())
 		{
 			return;
